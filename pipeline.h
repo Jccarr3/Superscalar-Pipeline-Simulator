@@ -17,6 +17,9 @@ Operation Types:
 2: latency of 5 cycles
 
 pipeline registers:
+Fetch:
+    - execute if DE is empty and more instructions to be handled
+    - can fetch up to WIDTH instructions
 DEcode: 
     - size of pipeline = WIDTH
     - only perform if DE contains a decode bundle and RN is empty
@@ -51,3 +54,47 @@ Writeback: size = WIDTH*5
 Retire: size = ROB_SIZE
     - retire up to the WIDTH ready instructions from head of ROB
 */
+
+//struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
+typedef struct Instruction{
+    //instruction information
+    uint32_t pc, op, destr, src1, src2;
+
+    //Instruction pipeline timing information
+    uint32_t FE, DE, RN, RR, DI, IS, EX, WB, RT;
+} Instruction;
+//struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
+
+class Pipeline{
+    //variables to be defined in constructor
+    uint32_t width, iq_size, rob_size;
+
+
+public:
+
+    //define all stages of the pipeline based on the necessary size
+    vector<Instruction> F_stage;
+    vector<Instruction> DE_stage;
+    vector<Instruction> RN_stage;
+    vector<Instruction> RR_stage;
+    vector<Instruction> DI_stage;
+    vector<Instruction> EX_stage;
+    vector<Instruction> WB_stage;
+    vector<Instruction> ROB;
+
+
+    Pipeline(uint32_t w, uint32_t iq, uint32_t rob){
+        //define variables based on arguments
+
+        //create each stage with correct size based on arguments
+    }
+
+    void Fetch(uint32_t width){
+        //fetch WIDTH instructions from trace
+        
+    }
+
+    void decode(uint32_t instruction){
+
+    }
+};
