@@ -3,6 +3,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "sim_proc.h"
+#include "pipeline.h"
 
 /*  argc holds the number of command line arguments
     argv[] holds the commands themselves
@@ -45,6 +46,26 @@ int main (int argc, char* argv[])
         printf("Error: Unable to open file %s\n", trace_file);
         exit(EXIT_FAILURE);
     }
+
+    //pipeline instantiated
+    //variables for instruction timing(updated in sim.cc)
+    uint32_t current_cycle = 0; 
+
+    //define all stages of the pipeline based on the necessary size
+
+    DE_stage.resize(params.width);
+    RN_stage.resize(params.width);
+    RR_stage.resize(params.width);
+    DI_stage.resize(params.width);
+    EX_stage.resize(params.width*5);
+    WB_stage.resize(params.width*5);
+    IQ.resize(params.iq_size);
+    ROB.resize(params.rob_size);
+
+    ARF.resize(67);
+    RMT.resize(67);
+
+
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -58,5 +79,24 @@ int main (int argc, char* argv[])
     while(fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
         printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
 
+    //fetch section
+    if(DE_stage[0].valid == 0){                     //if nothing in DE
+        for(int i = 0; i < params.width; i++){
+            fscanf(FP, "%lx %d %d %d %d", &pc, DE_stage[i].op, DE_stage[i].destr, DE_stage[i].src1, DE_stage[i].src2);
+        }
+    }  
+    //fetch section complete
+
+    //Decode
+    if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
+        for(int i = 0; i < params.width; i++){
+            RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
+            DE_stage[i].valid = 0;                  //clear decode stage
+        }
+    }
+    //Decode 
     return 0;
 }
+
+
+//fetch code
