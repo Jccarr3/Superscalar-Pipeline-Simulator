@@ -25,7 +25,7 @@ DEcode:
     - only perform if DE contains a decode bundle and RN is empty
         - advance bundle to RN 
 ReName: size of pipeline = WIDTH
-    - perform if RR is empty or Rob has free entries to accept rename bundle
+    - perform if RR is empty and Rob has free entries to accept rename bundle
         - allocate entry in ROB for instruction
         - rename source registers
         - rename destination reg(if it has one)
@@ -58,12 +58,26 @@ Retire: size = ROB_SIZE
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
 typedef struct Instruction{
     //instruction information
-    uint32_t pc, op, destr, src1, src2, valid;
+    int pc, op, destr, src1, src2, valid;
 
     //Instruction pipeline timing information
-    uint32_t seq, FE, DE, RN, RR, DI, IS, EX, WB, RT;
+    int seq, FE, DE, RN, RR, DI, IS, EX, WB, RT;
+
+    //instruction rename info
+    int src1_tag, src2_tag, destr_tag;
 
 } Instruction;
+
+typedef struct Reorder_Buffer{
+    //reorder buffer instruction variables
+    int value, dst, rdy, exc, mis, pc;
+
+} Reorder_Buffer;
+
+typedef struct Rename_Map_Table{
+    int valid, tag = -1;
+} Rename_Map_Table;
+
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
 
 vector<Instruction> DE_stage;
@@ -72,10 +86,19 @@ vector<Instruction> RR_stage;
 vector<Instruction> DI_stage;
 vector<Instruction> EX_stage;
 vector<Instruction> WB_stage;
-vector<uint32_t> ARF;
-vector<uint32_t> RMT;
-vector<Instruction> ROB;
+vector<int> ARF;
+vector<Rename_Map_Table> RMT;
+vector<Reorder_Buffer> ROB;
 vector<Instruction> IQ;
+
+
+
+//important variables
+    int width = 0;
+    //ROB
+    int ROB_head = 0;                  //used to track current position in ROB(circular buffer style)
+    int ROB_tail = 0;                  //used to throw instructions into this index of ROB
+    int total_in = 0;              //used for keeping track of how many items are currently in the ROB
 
 
 

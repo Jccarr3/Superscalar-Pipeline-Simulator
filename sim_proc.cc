@@ -49,16 +49,21 @@ int main (int argc, char* argv[])
 
     //pipeline instantiated
     //variables for instruction timing(updated in sim.cc)
-    uint32_t current_cycle = 0; 
+    int current_cycle = 0;
+    int global_seq = 0; 
+    width = params.width;
+    
+    //variables for ROB management
+
 
     //define all stages of the pipeline based on the necessary size
 
-    DE_stage.resize(params.width);
-    RN_stage.resize(params.width);
-    RR_stage.resize(params.width);
-    DI_stage.resize(params.width);
-    EX_stage.resize(params.width*5);
-    WB_stage.resize(params.width*5);
+    DE_stage.resize(width);
+    RN_stage.resize(width);
+    RR_stage.resize(width);
+    DI_stage.resize(width);
+    EX_stage.resize(width*5);
+    WB_stage.resize(width*5);
     IQ.resize(params.iq_size);
     ROB.resize(params.rob_size);
 
@@ -82,7 +87,11 @@ int main (int argc, char* argv[])
     //fetch section
     if(DE_stage[0].valid == 0){                     //if nothing in DE
         for(int i = 0; i < params.width; i++){
-            fscanf(FP, "%lx %d %d %d %d", &pc, DE_stage[i].op, DE_stage[i].destr, DE_stage[i].src1, DE_stage[i].src2);
+            fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2);  //read file line
+
+            DE_stage[i].valid = 1;                  //set stage as valid
+            DE_stage[i].seq = global_seq;           //store sequence number
+            global_seq++;                           //increment sequence counter
         }
     }  
     //fetch section complete
@@ -95,8 +104,67 @@ int main (int argc, char* argv[])
         }
     }
     //Decode 
+
+    //Rename
+    rename();
+    //Rename^^^^^^
+
+
+
     return 0;
 }
 
 
 //fetch code
+
+
+//rename code
+void rename(){
+        //check if ROB has free entries
+    if((ROB.size() - total_in) < width)  return;         //do nothing if the ROB is full
+        
+        //check if RR is empty 
+    if(RR_stage[0].valid != 0)  return;                         //do nothing if the rename stage is occupied
+
+        
+    for(int i = 0; i < width; i++){
+        //adds instruction to ROB 
+        if(RN_stage[i].destr != -1){                    
+            ROB[ROB_tail].dst = RN_stage[i].destr;
+        }
+        else{
+            ROB[ROB_tail].dst = -1;
+        }
+        ROB[ROB_tail].rdy = 0;
+        ROB[ROB_tail].exc = 0;
+        ROB[ROB_tail].mis = 0;
+        ROB[ROB_tail].pc = RN_stage[i].pc;
+        //adds instruction to ROB^^^^^
+
+        //rename source registers
+        if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed
+            RN_stage[i].src1_tag = RMT[RN_stage[i].src1].tag;       //rename instruction src reg to name from RMT
+        }
+        if(RN_stage[i].src2 != -1){
+            if((RMT[RN_stage[i].src2].valid == 1)){        //source register 2 has been renamed
+                RN_stage[i].src2_tag = RMT[RN_stage[i].src2].tag;       //rename instruction src reg to name from RMT
+            }
+        }   
+        //rename source registers^^^^^^^
+
+        //rename destination register and set RMT
+        if(RN_stage[i].destr != -1){            //check if there is a destination register
+            RMT[RN_stage[i].destr].valid = 1;           //set RMT index valid
+            RMT[RN_stage[i].destr].tag = ROB_tail;      //rename register in RMT
+            RN_stage[i].destr_tag = ROB_tail;           //rename destination register in Instruction package
+        }       
+
+        ROB_tail = (ROB_tail + 1) % ROB.size();             //move tail to next open space ensuring wraparound
+        RR_stage[i] = RN_stage[i];
+    }
+
+    for(int i = 0; i < width; i++){
+        RN_stage[i].valid = 0;              //clear the RN stage signal decode to move forward
+    }
+    //Rename^^^^^^
+}
