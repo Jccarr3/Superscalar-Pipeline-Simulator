@@ -16,6 +16,11 @@
     argv[2] = "32"
     ... and so on
 */
+
+int current_cycle = 0;
+int global_seq = 0; 
+
+
 int main (int argc, char* argv[])
 {
     FILE *FP;               // File handler
@@ -49,8 +54,7 @@ int main (int argc, char* argv[])
 
     //pipeline instantiated
     //variables for instruction timing(updated in sim.cc)
-    int current_cycle = 0;
-    int global_seq = 0; 
+
     width = params.width;
     
     //variables for ROB management
@@ -90,6 +94,7 @@ int main (int argc, char* argv[])
             fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2);  //read file line
 
             DE_stage[i].valid = 1;                  //set stage as valid
+            DE_stage[i].DE = current_cycle;         //set what cycle it enters the decode stage
             DE_stage[i].seq = global_seq;           //store sequence number
             global_seq++;                           //increment sequence counter
         }
@@ -100,6 +105,7 @@ int main (int argc, char* argv[])
     if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
         for(int i = 0; i < params.width; i++){
             RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
+            RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
             DE_stage[i].valid = 0;                  //clear decode stage
         }
     }
@@ -161,6 +167,7 @@ void rename(){
 
         ROB_tail = (ROB_tail + 1) % ROB.size();             //move tail to next open space ensuring wraparound
         RR_stage[i] = RN_stage[i];
+        RR_stage[i].RR = current_cycle;
     }
 
     for(int i = 0; i < width; i++){
