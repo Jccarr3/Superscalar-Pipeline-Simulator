@@ -115,7 +115,10 @@ int main (int argc, char* argv[])
     rename();
     //Rename^^^^^^
 
-
+    //RegRead
+        //check if DI is empty 
+        if(RR_stage[0].valid == 0) return;
+        if(DI_stage[0].valid == 1) return;
 
     return 0;
 }
@@ -124,13 +127,13 @@ int main (int argc, char* argv[])
 //fetch code
 
 
-//rename code
+//rename function
 void rename(){
         //check if ROB has free entries
     if((ROB.size() - total_in) < width)  return;         //do nothing if the ROB is full
         
         //check if RR is empty 
-    if(RR_stage[0].valid != 0)  return;                         //do nothing if the rename stage is occupied
+    if(RR_stage[0].valid != 0 || RN_stage[0].valid == 0)  return;                         //do nothing if the rename stage is occupied or rename stage is empty
 
         
     for(int i = 0; i < width; i++){
@@ -173,5 +176,5 @@ void rename(){
     for(int i = 0; i < width; i++){
         RN_stage[i].valid = 0;              //clear the RN stage signal decode to move forward
     }
-    //Rename^^^^^^
 }
+//rename function
