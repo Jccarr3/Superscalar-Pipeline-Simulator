@@ -71,7 +71,7 @@ int main (int argc, char* argv[])
     IQ.resize(params.iq_size);
     ROB.resize(params.rob_size);
 
-    ARF.resize(67);
+    ARF.resize(67, 1);
     RMT.resize(67);
 
 
@@ -90,7 +90,7 @@ int main (int argc, char* argv[])
 
     //fetch section
     if(DE_stage[0].valid == 0){                     //if nothing in DE
-        for(int i = 0; i < params.width; i++){
+        for(int i = 0; i < width; i++){
             fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2);  //read file line
 
             DE_stage[i].valid = 1;                  //set stage as valid
@@ -103,22 +103,34 @@ int main (int argc, char* argv[])
 
     //Decode
     if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
-        for(int i = 0; i < params.width; i++){
+        for(int i = 0; i < width; i++){
             RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
             RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
             DE_stage[i].valid = 0;                  //clear decode stage
         }
     }
     //Decode 
-
+    decode();
     //Rename
     rename();
     //Rename^^^^^^
 
     //RegRead
-        //check if DI is empty 
-        if(RR_stage[0].valid == 0) return;
-        if(DI_stage[0].valid == 1) return;
+    regread();
+    //regRead^^^^^^^
+
+    //Dispatch
+    dispatch();
+    //dispatch^^^^^^
+
+
+
+
+
+    //Execute
+        //one way to do wake up calls is to manually look at the instructions that are currently in the IQ, DI, and RR bundles
+        //and manually search through to see if there are any that have matching tags, then wake up accordingly
+
 
     return 0;
 }
@@ -126,17 +138,29 @@ int main (int argc, char* argv[])
 
 //fetch code
 
+//Decode function
+void decode(){
+    if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
+        for(int i = 0; i < width; i++){
+            RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
+            RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
+            DE_stage[i].valid = 0;                  //clear decode stage
+        }
+    }
+}
+//Decode function^^^^^^
 
 //rename function
 void rename(){
         //check if ROB has free entries
-    if((ROB.size() - total_in) < width)  return;         //do nothing if the ROB is full
+    if((ROB.size() - total_in_ROB) < width)  return;         //do nothing if the ROB is full
         
         //check if RR is empty 
     if(RR_stage[0].valid != 0 || RN_stage[0].valid == 0)  return;                         //do nothing if the rename stage is occupied or rename stage is empty
 
         
     for(int i = 0; i < width; i++){
+        total_in_ROB++;             //increase the number of items in ROB
         //adds instruction to ROB 
         if(RN_stage[i].destr != -1){                    
             ROB[ROB_tail].dst = RN_stage[i].destr;
@@ -177,4 +201,46 @@ void rename(){
         RN_stage[i].valid = 0;              //clear the RN stage signal decode to move forward
     }
 }
-//rename function
+//rename function^^^^^^
+
+//register read function
+void regread(){
+    //check if DI is empty 
+    if(RR_stage[0].valid == 0) return;
+    if(DI_stage[0].valid == 1) return;
+
+    //check if source registers are ready and set bit accordingly(if it is then mark it as ready)
+    for(int i = 0; i < width; i++){
+        if(RR_stage[i].src1_tag == -1){     //register 1 has not been renamed and can be assumed ready
+            RR_stage[i].rdy1 = 1;
+        }
+        else{
+            RR_stage[i].rdy1 = ROB[RR_stage[i].src1_tag].rdy;       //set ready status of register 1 based on the ROB ready value
+        }
+        if(RR_stage[i].src2_tag == -1){     //register 2 has not been renamed and can be assumed ready
+            RR_stage[i].rdy2 = 1;
+        }
+        else{
+            RR_stage[i].rdy2 = ROB[RR_stage[i].src2_tag].rdy;       //set ready status of register 2 based on the ROB ready value
+        }
+
+        DI_stage[i] = RR_stage[i];              //move to dispatch stage
+        RR_stage[i].valid = 0;                  //set reg read stage as empty after moving
+    }
+}
+//register read function^^^^^
+
+//Dispatch function
+void dispatch(){
+    if(DI_stage[0].valid == 0) return;                  // if the Dispatch stage is empty then do nothing
+    if(IQ.size() - total_in_IQ < width) return;         // if the there is not enough space in the IQ then do nothing
+
+    //insert instruction into the tail location of IQ
+    for(int i = 0; i < width; i++){
+        IQ[IQ_tail] = DI_stage[i];                          //move instruction from Dispatch to instruction queue
+        IQ_tail =  (IQ_tail + 1) % IQ.size();               //increment tail pointer ensuring to cover wraparound
+    }
+
+    return;
+}
+//dispatch function^^^^^^^
