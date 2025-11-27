@@ -58,7 +58,7 @@ Retire: size = ROB_SIZE
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
 typedef struct Instruction{
     //instruction information
-    int pc, op, destr, src1, src2, valid, rdy1 = 1, rdy2 = 1;
+    int pc, op, destr, src1, src2, valid, rdy1 = 0, rdy2 = 0;
 
     //Instruction pipeline timing information
     int seq, FE, DE, RN, RR, DI, IS, EX, WB, RT;
@@ -102,14 +102,12 @@ vector<Instruction> final_list;
     int ROB_size = 0;
     int ROB_head = 0;                  //used to track current position in ROB(circular buffer style)
     int ROB_tail = 0;                  //used to throw instructions into this index of ROB
-    int total_in_ROB = 0;              //used for keeping track of how many items are currently in the ROB
 
 
     //IQ
     int IQ_size = 0;
     int IQ_head = 0;                   //this will be used to keep track of the oldest element in the IQ
     int IQ_tail = 0;                   //used to insert items into this index of the IQ
-    int total_in_IQ = 0;               //used to keep track of how many items are currently in the IQ
 
 
 

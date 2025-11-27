@@ -23,6 +23,9 @@ int global_seq = 0;
 int dic = 0;
 int pl_status = 0;
 int trace_status = 1;
+int total_in_ROB = 0;              //used for keeping track of how many items are currently in the ROB
+int total_in_IQ = 0;
+
 
 
 
@@ -99,9 +102,19 @@ int main (int argc, char* argv[])
     //fetch section
     while(advance_cycle()){
         test_count++;
-        if(test_count % 1000 == 0){
-            printf("yo ");
-        }
+            printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            DI_stage[0].seq, DI_stage[0].op, DI_stage[0].src1, DI_stage[0].src2, DI_stage[0].destr, 
+            DI_stage[0].DE - 1, 1, 
+            DI_stage[0].DE, DI_stage[0].RN - DI_stage[0].DE,
+            DI_stage[0].RN, DI_stage[0].RR - DI_stage[0].RN,
+            DI_stage[0].RR, DI_stage[0].DI - DI_stage[0].RR,
+            DI_stage[0].DI, DI_stage[0].IS - DI_stage[0].DI,
+            DI_stage[0].IS, DI_stage[0].EX - DI_stage[0].IS,
+            DI_stage[0].EX, DI_stage[0].WB - DI_stage[0].EX,
+            DI_stage[0].WB, 1,
+            DI_stage[0].RT, 1);
+        
+        if(test_count % 10 == 0) break;
         retire();
         writeback();
         execute();
@@ -127,7 +140,7 @@ int main (int argc, char* argv[])
             }
         }  
     }
-    print_final();
+    //print_final();
 
     return 0;
 }
@@ -144,6 +157,7 @@ void decode(){
             DE_stage[i].valid = 0;                  //clear decode stage
         }
     }
+    return;
 }
 //Decode function^^^^^^
 
@@ -153,34 +167,34 @@ void rename(){
     if((ROB.size() - total_in_ROB) < width)  return;         //do nothing if the ROB is full
         
         //check if RR is empty 
-    if(RR_stage[0].valid != 0 || RN_stage[0].valid == 0)  return;                         //do nothing if the rename stage is occupied or rename stage is empty
+    if(RR_stage[0].valid != 0 || RN_stage[0].valid == 0)  return;                         //do nothing if the regread stage is occupied or rename stage is empty
 
         
     for(int i = 0; i < width; i++){
-        if (RN_stage[i].valid == 0){
+        if (RN_stage[i].valid == 0){            //only runs if at end of trace and not moving full bundle
             continue;
         }
-        total_in_ROB++;             //increase the number of items in ROB
+        total_in_ROB++;                         //increase the number of items in ROB
         //adds instruction to ROB 
-        if(RN_stage[i].destr != -1){                    
-            ROB[ROB_tail].dst = RN_stage[i].destr;
+        if(RN_stage[i].destr != -1){                       //if the instruction has a destination reg
+            ROB[ROB_tail].dst = RN_stage[i].destr;         //set destination register in ROB
         }
         else{
-            ROB[ROB_tail].dst = -1;
+            ROB[ROB_tail].dst = -1;                        //set ROB destination register as null
         }
-        ROB[ROB_tail].rdy = 0;
-        ROB[ROB_tail].exc = 0;
-        ROB[ROB_tail].mis = 0;
-        ROB[ROB_tail].pc = RN_stage[i].pc;
-        ROB[ROB_tail].inst = RN_stage[i];
+        ROB[ROB_tail].rdy = 0;                             //set ROB ready bit as 0
+        ROB[ROB_tail].exc = 0;                              //unused for now
+        ROB[ROB_tail].mis = 0;                             //unused for now
+        ROB[ROB_tail].pc = RN_stage[i].pc;                 //match the program counter(used later for setting items in the ROB as ready)
+        ROB[ROB_tail].inst = RN_stage[i];                  //store entire instruction information 
         //adds instruction to ROB^^^^^
 
         //rename source registers
-        if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed
+        if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed(check RMT)
             RN_stage[i].src1_tag = RMT[RN_stage[i].src1].tag;       //rename instruction src reg to name from RMT
         }
         
-        if(RN_stage[i].src2 != -1){
+        if(RN_stage[i].src2 != -1){             //checks if there is a second source register
             if((RMT[RN_stage[i].src2].valid == 1)){        //source register 2 has been renamed
                 RN_stage[i].src2_tag = RMT[RN_stage[i].src2].tag;       //rename instruction src reg to name from RMT
             }
@@ -190,42 +204,44 @@ void rename(){
         //rename destination register and set RMT
         if(RN_stage[i].destr != -1){            //check if there is a destination register
             RMT[RN_stage[i].destr].valid = 1;           //set RMT index valid
-            RMT[RN_stage[i].destr].tag = ROB_tail;      //rename register in RMT
+            RMT[RN_stage[i].destr].tag = ROB_tail;      //rename register in RMT to the index of instruction in ROB
             RN_stage[i].destr_tag = ROB_tail;           //rename destination register in Instruction package
         }       
 
         ROB_tail = (ROB_tail + 1) % ROB.size();             //move tail to next open space ensuring wraparound
-        RR_stage[i] = RN_stage[i];
-        RR_stage[i].RR = current_cycle;
+        RR_stage[i] = RN_stage[i];                          //move instruction from rename to register read
+        RR_stage[i].RR = current_cycle;                     //set register read timing information
     }
 
     for(int i = 0; i < width; i++){
         RN_stage[i].valid = 0;              //clear the RN stage signal decode to move forward
     }
+
+    return;
 }
 //rename function^^^^^^
 
 //register read function
 void regread(){
     //check if DI is empty 
-    if(RR_stage[0].valid == 0) return;
-    if(DI_stage[0].valid == 1) return;
+    if(RR_stage[0].valid == 0) return;                      //if register read stage is empty then do nothing
+    if(DI_stage[0].valid == 1) return;                      //if dispatch stage is full, do nothing
 
     //check if source registers are ready and set bit accordingly(if it is then mark it as ready)
     for(int i = 0; i < width; i++){
-        if(RR_stage[i].valid == 0){
+        if(RR_stage[i].valid == 0){             //this only occurs if at the end of file and not moving full bundle
             continue;
         }
         if(RR_stage[i].src1_tag == -1){     //register 1 has not been renamed and can be assumed ready
             RR_stage[i].rdy1 = 1;
         }
-        else{
+        else if(RR_stage[i].rdy1 != 1){                 //if reg 1 has been renamed and it hasn't been set ready by preceding stages
             RR_stage[i].rdy1 = ROB[RR_stage[i].src1_tag].rdy;       //set ready status of register 1 based on the ROB ready value
         }
         if(RR_stage[i].src2_tag == -1){     //register 2 has not been renamed and can be assumed ready
             RR_stage[i].rdy2 = 1;
         }
-        else{
+        else if(RR_stage[i].rdy2 != 1){                 //if reg 2 has been renamed and it hasn't been set ready by preceding stages
             RR_stage[i].rdy2 = ROB[RR_stage[i].src2_tag].rdy;       //set ready status of register 2 based on the ROB ready value
         }
 
@@ -233,6 +249,7 @@ void regread(){
         DI_stage[i].DI = current_cycle;         //set time it entered DI stage
         RR_stage[i].valid = 0;                  //set reg read stage as empty after moving
     }
+    return;
 }
 //register read function^^^^^
 
@@ -244,9 +261,11 @@ void dispatch(){
 
     //insert instruction into open location of the IQ(step through IQ to find open space)
     for(int i = 0; i < width; i++){
+        if(DI_stage[i].valid == 0)  continue;       //skip if invalid instruction(i.e. not a full bundle)
         for(int j = 0; j < IQ_size; j++){           //step through IQ to find empty spot
             if(IQ[j].valid == 0){
                 IQ[j] = DI_stage[i];                //insert new instruction at empty spot
+                IQ[j].IS = current_cycle;           //set IQ timing information for instruction
                 DI_stage[i].valid = 0;              //clear DI_stage
                 total_in_IQ++;
                 break;
@@ -273,11 +292,12 @@ void issue(){
                     EX_stage[j].EX = current_cycle;
                     IQ[ready_index].valid = 0;              //set old IQ element as empty
                     total_in_IQ--;
+                    break;
                 }
             }
         }
-
     }
+    return;
 }
 //issue function^^^^^^
 
@@ -319,6 +339,7 @@ void execute(){
             RR_wakeup(i);
         }
     }
+    return;
 }
 //execute function^^^^^
 
@@ -328,24 +349,29 @@ void writeback(){
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
             if(ROB[j].pc == WB_stage[i].pc){
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
+                ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
                 ROB[j].inst.RT = current_cycle;
+
                 WB_stage[i].valid = 0;          //remove instruction from the writeback stage
             }
         }                               
     }
+    return;
 }
 //Writeback Function^^^^^^
 
 //Retire function
 void retire(){
-    for(int i = 0; i < width;i++){
+    for(int i = 0; i < width;i++){                  //retire up to WIDTH items from the ROB
         if(ROB[ROB_head].rdy == 1){
+            //write code to reset corresponding RMT space(only reset if the tags match)
             final_list.push_back(ROB[ROB_head].inst);
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
             dic++;
         }
     }
+    return;
 }
 //Retire Function^^^^^^
 
@@ -375,9 +401,12 @@ int advance_cycle(){
 //IQ helper functions
 int find_min_ready(int x){
     int min_val = x;
-    int min_index = IQ_size ;
+    int min_index = IQ_size;
 
     for(int i = 0; i < IQ_size; i++){
+        if(IQ[i].valid == 0){           //ensures only occupied indexes are used
+            continue;
+        }
         if((IQ[i].seq <= min_val) && (IQ[i].rdy1 == 1) && (IQ[i].rdy2 == 1)){        //checks if all regs are ready and if it is the minimum item
             min_val = IQ[i].seq;            //change new minimum value
             min_index = i;                  //set minimum index
