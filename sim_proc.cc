@@ -56,6 +56,7 @@ int main (int argc, char* argv[])
     //variables for instruction timing(updated in sim.cc)
 
     width = params.width;
+    IQ_size = params.iq_size;
     
     //variables for ROB management
 
@@ -68,7 +69,7 @@ int main (int argc, char* argv[])
     DI_stage.resize(width);
     EX_stage.resize(width*5);
     WB_stage.resize(width*5);
-    IQ.resize(params.iq_size);
+    IQ.resize(IQ_size);
     ROB.resize(params.rob_size);
 
     ARF.resize(67, 1);
@@ -143,7 +144,7 @@ void decode(){
     if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
         for(int i = 0; i < width; i++){
             RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
-            RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
+            RN_stage[i].DE = current_cycle;         //set cycle where instruction enters RN stage
             DE_stage[i].valid = 0;                  //clear decode stage
         }
     }
@@ -225,6 +226,7 @@ void regread(){
         }
 
         DI_stage[i] = RR_stage[i];              //move to dispatch stage
+        DI_stage[i].DI = current_cycle;         //set time it entered DI stage
         RR_stage[i].valid = 0;                  //set reg read stage as empty after moving
     }
 }
@@ -232,15 +234,69 @@ void regread(){
 
 //Dispatch function
 void dispatch(){
-    if(DI_stage[0].valid == 0) return;                  // if the Dispatch stage is empty then do nothing
-    if(IQ.size() - total_in_IQ < width) return;         // if the there is not enough space in the IQ then do nothing
 
-    //insert instruction into the tail location of IQ
+    if(DI_stage[0].valid == 0) return;                  // if the Dispatch stage is empty then do nothing
+    if(IQ_size - total_in_IQ < width) return;         // if the there is not enough space in the IQ then do nothing
+
+    //insert instruction into open location of the IQ(step through IQ to find open space)
     for(int i = 0; i < width; i++){
-        IQ[IQ_tail] = DI_stage[i];                          //move instruction from Dispatch to instruction queue
-        IQ_tail =  (IQ_tail + 1) % IQ.size();               //increment tail pointer ensuring to cover wraparound
+        for(int j = 0; j < IQ_size; j++){           //step through IQ to find empty spot
+            if(IQ[j].valid == 0){
+                IQ[j] = DI_stage[i];                //insert new instruction at empty spot
+                DI_stage[i].valid = 0;              //clear DI_stage
+                break;
+            }
+        }
+        total_in_IQ++;
+
     }
 
     return;
 }
 //dispatch function^^^^^^^
+
+void issue(){
+    int num_issued = 0;
+    int ready_index = 0;
+
+    int max = find_max();                   //used to set the newest item and work back from
+    for(int i = 0; i < width; i++){         //for loop to limit number of instructions moved to the Ex stage
+        ready_index = find_min_ready(max);      //index of instruction ready to go to executre
+        if(ready_index < IQ_size){                  //if ready index is found
+            for(int j = 0; j < EX_stage.size(); j++){       //increment through execute stage to find open index
+                if(EX_stage[j].valid == 0){
+                    EX_stage[j] = IQ[ready_index];          //insert ready index into execute
+                    IQ[ready_index].valid = 0;              //set old IQ element as empty
+                }
+            }
+        }
+
+    }
+}
+
+
+int find_min_ready(int x){
+    int min_val = x;
+    int min_index = IQ_size ;
+
+    for(int i = 0; i < IQ_size; i++){
+        if((IQ[i].seq <= min_val) && (IQ[i].rdy1 == 1) && (IQ[i].rdy2 == 1)){        //checks if all regs are ready and if it is the minimum item
+            min_val = IQ[i].seq;            //change new minimum value
+            min_index = i;                  //set minimum index
+        }
+    }
+
+    return min_index;
+}
+
+int find_max(){
+    int max_value = 0;
+    int max_index = 0;
+
+    for(int i = 0; i < IQ_size; i++){
+        if((IQ[i].seq >= max_value) && (IQ[i].valid == 1)){        //checks if all regs are ready and if it is the minimum item
+            max_value = IQ[i].seq;            //change new minimum value
+        }
+    }
+    return max_value;
+}
