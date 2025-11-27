@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include "sim_proc.h"
 #include "pipeline.h"
+#include <algorithm>
 
 /*  argc holds the number of command line arguments
     argv[] holds the commands themselves
@@ -19,6 +20,10 @@
 
 int current_cycle = 0;
 int global_seq = 0; 
+int dic = 0;
+int pl_status = 0;
+int trace_status = 1;
+
 
 
 int main (int argc, char* argv[])
@@ -57,6 +62,7 @@ int main (int argc, char* argv[])
 
     width = params.width;
     IQ_size = params.iq_size;
+    ROB_size = params.rob_size;
     
     //variables for ROB management
 
@@ -76,6 +82,7 @@ int main (int argc, char* argv[])
     RMT.resize(67);
 
 
+
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -90,43 +97,33 @@ int main (int argc, char* argv[])
         printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
 
     //fetch section
-    if(DE_stage[0].valid == 0){                     //if nothing in DE
-        for(int i = 0; i < width; i++){
-            fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2);  //read file line
+    while(advance_cycle()){
+        retire();
+        writeback();
+        execute();
+        issue();
+        dispatch();
+        regread();
+        rename();
+        decode();
+        if(DE_stage[0].valid == 0){                     //if nothing in DE
+            for(int i = 0; i < width; i++){
+                if(fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2) != EOF){   //read file line
+                    DE_stage[i].valid = 1;                  //set stage as valid
+                    DE_stage[i].DE = current_cycle;         //set what cycle it enters the decode stage
+                    DE_stage[i].seq = global_seq;           //store sequence number
+                    global_seq++;                           //increment sequence counter
+                    trace_status = 1;                                     //set trace empty flag if empty
+                }  
 
-            DE_stage[i].valid = 1;                  //set stage as valid
-            DE_stage[i].DE = current_cycle;         //set what cycle it enters the decode stage
-            DE_stage[i].seq = global_seq;           //store sequence number
-            global_seq++;                           //increment sequence counter
-        }
-    }  
-    //fetch section complete
-
-    //Decode
-    if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
-        for(int i = 0; i < width; i++){
-            RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
-            RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
-            DE_stage[i].valid = 0;                  //clear decode stage
-        }
+                else{
+                    trace_status = 0;
+                }                        //increment sequence counter
+            }
+        }  
     }
-    //Decode 
-    decode();
-    //Rename
-    rename();
-    //Rename^^^^^^
 
-    //RegRead
-    regread();
-    //regRead^^^^^^^
-
-    //Dispatch
-    dispatch();
-    //dispatch^^^^^^
-
-
-
-
+    //print all reordered final list
 
     //Execute
         //one way to do wake up calls is to manually look at the instructions that are currently in the IQ, DI, and RR bundles
@@ -173,6 +170,7 @@ void rename(){
         ROB[ROB_tail].exc = 0;
         ROB[ROB_tail].mis = 0;
         ROB[ROB_tail].pc = RN_stage[i].pc;
+        ROB[ROB_tail].inst = RN_stage[i];
         //adds instruction to ROB^^^^^
 
         //rename source registers
@@ -244,11 +242,10 @@ void dispatch(){
             if(IQ[j].valid == 0){
                 IQ[j] = DI_stage[i];                //insert new instruction at empty spot
                 DI_stage[i].valid = 0;              //clear DI_stage
+                total_in_IQ++;
                 break;
             }
         }
-        total_in_IQ++;
-
     }
 
     return;
@@ -269,6 +266,7 @@ void issue(){
                     EX_stage[j] = IQ[ready_index];          //insert ready index into execute
                     EX_stage[j].EX = current_cycle;
                     IQ[ready_index].valid = 0;              //set old IQ element as empty
+                    total_in_IQ--;
                 }
             }
         }
@@ -317,9 +315,48 @@ void execute(){
 
 //Writback Function
 void writeback(){
+    for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
+        for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
+            if(ROB[j].pc == WB_stage[i].pc){
+                ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
+                WB_stage[i].valid = 0;          //remove instruction from the writeback stage
+            }
+        }                               
+    }
+}
+//Writeback Function^^^^^^
+
+//Retire function
+void retire(){
+    for(int i = 0; i < width;i++){
+        if(ROB[ROB_head].rdy == 1){
+            final_list.push_back(ROB[ROB_head].inst);
+            ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
+            total_in_ROB--;                                 //decrease number perceived number of items in ROB
+            dic++;
+        }
+    }
+}
+//Retire Function^^^^^^
+
+//Advance cycle function
+int advance_cycle(){
+    int stages_empty = 1;
+    current_cycle++;
+    if((DE_stage[0].valid == 1) || (RN_stage[0].valid == 1) ||
+       (RR_stage[0].valid == 1) || (DI_stage[0].valid == 1) ||
+       (EX_stage[0].valid == 1) || (WB_stage[0].valid == 1)){
+        stages_empty = 0;
+       }
+
+    if(stages_empty && IQ_status() && ROB_status()){
+        return 0;
+    }
+
+    return 1;
     
 }
-//Writeback Function
+//Advance cycle function^^^^^
 
 
 
@@ -387,3 +424,34 @@ void RR_wakeup(int ex_index){
     }
 }
 //Execute helper functions^^^^^
+
+//Advance cycle functions
+int IQ_status(){
+    int all_clear = 1;
+    for(int i = 0; i < IQ_size; i++){
+        if(IQ[i].valid == 1){
+            all_clear = 0;
+        }
+    }
+
+    return all_clear;
+}
+
+int ROB_status(){
+    if(ROB_head == ROB_tail){
+        return 1;
+    }
+}
+//Advance cycle functions
+
+//printing functions
+void print_final(){
+    sort(final_list.begin(), final_list.end(), [](const Instruction& a, const Instruction& b){
+        return a.seq < b.seq;
+    });
+
+    for(int i = 0; i < final_list.size(); i++){
+        printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            final_list[i].seq, final_list[i].op, final_list[i].src1, final_list[i].src2);
+    }
+}

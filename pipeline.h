@@ -71,6 +71,7 @@ typedef struct Instruction{
 typedef struct Reorder_Buffer{
     //reorder buffer instruction variables
     int value, dst, rdy, exc, mis, pc;
+    Instruction inst;
 
 } Reorder_Buffer;
 
@@ -90,12 +91,15 @@ vector<int> ARF;
 vector<Rename_Map_Table> RMT;
 vector<Reorder_Buffer> ROB;
 vector<Instruction> IQ;
+vector<Instruction> final_list;
+
 
 
 
 //important variables
     int width = 0;
     //ROB
+    int ROB_size = 0;
     int ROB_head = 0;                  //used to track current position in ROB(circular buffer style)
     int ROB_tail = 0;                  //used to throw instructions into this index of ROB
     int total_in_ROB = 0;              //used for keeping track of how many items are currently in the ROB
