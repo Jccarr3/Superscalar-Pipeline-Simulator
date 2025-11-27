@@ -255,6 +255,7 @@ void dispatch(){
 }
 //dispatch function^^^^^^^
 
+//issue function
 void issue(){
     int num_issued = 0;
     int ready_index = 0;
@@ -266,6 +267,7 @@ void issue(){
             for(int j = 0; j < EX_stage.size(); j++){       //increment through execute stage to find open index
                 if(EX_stage[j].valid == 0){
                     EX_stage[j] = IQ[ready_index];          //insert ready index into execute
+                    EX_stage[j].EX = current_cycle;
                     IQ[ready_index].valid = 0;              //set old IQ element as empty
                 }
             }
@@ -273,8 +275,57 @@ void issue(){
 
     }
 }
+//issue function^^^^^^
+
+//execute function
+void execute(){
+    int wb_index = 0;
+    for(int i = 0; i < width*5; i++){
+        //type 0 instruction handling
+        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 1)){    //if the type is 0 and it has been in execute for 1 cycle
+            WB_stage[wb_index] = EX_stage[i];
+            EX_stage[i].valid = 0;
+            wb_index++;            
+            //wakeup handling
+            IQ_wakeup(i);
+            DI_wakeup(i);
+            RR_wakeup(i);
+        }
+        //type 1 instruction handling
+        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 2)){    //if the type is 1 and it has been in execute for 2 cycles
+            WB_stage[wb_index] = EX_stage[i];
+            EX_stage[i].valid = 0;
+            wb_index++;            
+            //wakeup handling
+            IQ_wakeup(i);
+            DI_wakeup(i);
+            RR_wakeup(i);
+        }
+        //type 2 instruction handling
+        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 5)){    //if the type is 2 and it has been in execute for 5 cycles
+            WB_stage[wb_index] = EX_stage[i];
+            EX_stage[i].valid = 0;
+            wb_index++;            
+            //wakeup handling
+            IQ_wakeup(i);
+            DI_wakeup(i);
+            RR_wakeup(i);
+        }
+    }
+}
+//execute function^^^^^
+
+//Writback Function
+void writeback(){
+    
+}
+//Writeback Function
 
 
+
+
+
+//IQ helper functions
 int find_min_ready(int x){
     int min_val = x;
     int min_index = IQ_size ;
@@ -300,3 +351,39 @@ int find_max(){
     }
     return max_value;
 }
+//IQ helper FUnctions^^^^^^
+
+//Execute helper functions
+void IQ_wakeup(int ex_index){
+    for(int i = 0; i < IQ_size; i++){       //walk through IQ to find any depended source registers
+        if(IQ[i].src1_tag == EX_stage[ex_index].destr_tag)  {
+            IQ[i].rdy1 = 1;                 //if source register 1 name matches freed destination register then set ready
+        }
+        if(IQ[i].src2_tag == EX_stage[ex_index].destr_tag)  {
+            IQ[i].rdy2 = 1;                 //if source register 2 name matches freed destination register then set ready
+        }
+    }
+}
+
+void DI_wakeup(int ex_index){
+    for(int i = 0; i < width; i++){       //walk through IQ to find any depended source registers
+        if(DI_stage[i].src1_tag == EX_stage[ex_index].destr_tag)  {
+            DI_stage[i].rdy1 = 1;                 //if source register 1 name matches freed destination register then set ready
+        }
+        if(DI_stage[i].src2_tag == EX_stage[ex_index].destr_tag)  {
+            DI_stage[i].rdy2 = 1;                 //if source register 2 name matches freed destination register then set ready
+        }
+    }
+}
+
+void RR_wakeup(int ex_index){
+    for(int i = 0; i < width; i++){       //walk through IQ to find any depended source registers
+        if(RR_stage[i].src1_tag == EX_stage[ex_index].destr_tag)  {
+            RR_stage[i].rdy1 = 1;                 //if source register 1 name matches freed destination register then set ready
+        }
+        if(RR_stage[i].src2_tag == EX_stage[ex_index].destr_tag)  {
+            RR_stage[i].rdy2 = 1;                 //if source register 2 name matches freed destination register then set ready
+        }
+    }
+}
+//Execute helper functions^^^^^
