@@ -82,7 +82,7 @@ int main (int argc, char* argv[])
     RMT.resize(67);
 
 
-
+    int test_count = 0;
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -93,11 +93,15 @@ int main (int argc, char* argv[])
     // inside the Fetch() function.
     //
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    while(fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
-        printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
+    // while(fscanf(FP, "%lx %d %d %d %d", &pc, &op_type, &dest, &src1, &src2) != EOF)
+    //     printf("%lx %d %d %d %d\n", pc, op_type, dest, src1, src2); //Print to check if inputs have been read correctly
 
     //fetch section
     while(advance_cycle()){
+        test_count++;
+        if(test_count % 1000 == 0){
+            printf("yo ");
+        }
         retire();
         writeback();
         execute();
@@ -118,17 +122,12 @@ int main (int argc, char* argv[])
 
                 else{
                     trace_status = 0;
+                    break;
                 }                        //increment sequence counter
             }
         }  
     }
-
-    //print all reordered final list
-
-    //Execute
-        //one way to do wake up calls is to manually look at the instructions that are currently in the IQ, DI, and RR bundles
-        //and manually search through to see if there are any that have matching tags, then wake up accordingly
-
+    print_final();
 
     return 0;
 }
@@ -141,7 +140,7 @@ void decode(){
     if(DE_stage[0].valid == 1 && RN_stage[0].valid == 0){       //if decode bundle contains something and rename bundle is empty
         for(int i = 0; i < width; i++){
             RN_stage[i] = DE_stage[i];              //move instruction from DE to RN
-            RN_stage[i].DE = current_cycle;         //set cycle where instruction enters RN stage
+            RN_stage[i].RN = current_cycle;         //set cycle where instruction enters RN stage
             DE_stage[i].valid = 0;                  //clear decode stage
         }
     }
@@ -158,6 +157,9 @@ void rename(){
 
         
     for(int i = 0; i < width; i++){
+        if (RN_stage[i].valid == 0){
+            continue;
+        }
         total_in_ROB++;             //increase the number of items in ROB
         //adds instruction to ROB 
         if(RN_stage[i].destr != -1){                    
@@ -177,6 +179,7 @@ void rename(){
         if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed
             RN_stage[i].src1_tag = RMT[RN_stage[i].src1].tag;       //rename instruction src reg to name from RMT
         }
+        
         if(RN_stage[i].src2 != -1){
             if((RMT[RN_stage[i].src2].valid == 1)){        //source register 2 has been renamed
                 RN_stage[i].src2_tag = RMT[RN_stage[i].src2].tag;       //rename instruction src reg to name from RMT
@@ -210,6 +213,9 @@ void regread(){
 
     //check if source registers are ready and set bit accordingly(if it is then mark it as ready)
     for(int i = 0; i < width; i++){
+        if(RR_stage[i].valid == 0){
+            continue;
+        }
         if(RR_stage[i].src1_tag == -1){     //register 1 has not been renamed and can be assumed ready
             RR_stage[i].rdy1 = 1;
         }
@@ -282,6 +288,7 @@ void execute(){
         //type 0 instruction handling
         if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 1)){    //if the type is 0 and it has been in execute for 1 cycle
             WB_stage[wb_index] = EX_stage[i];
+            WB_stage[wb_index].WB = current_cycle;
             EX_stage[i].valid = 0;
             wb_index++;            
             //wakeup handling
@@ -292,6 +299,7 @@ void execute(){
         //type 1 instruction handling
         if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 2)){    //if the type is 1 and it has been in execute for 2 cycles
             WB_stage[wb_index] = EX_stage[i];
+            WB_stage[wb_index].WB = current_cycle;
             EX_stage[i].valid = 0;
             wb_index++;            
             //wakeup handling
@@ -302,6 +310,7 @@ void execute(){
         //type 2 instruction handling
         if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 5)){    //if the type is 2 and it has been in execute for 5 cycles
             WB_stage[wb_index] = EX_stage[i];
+            WB_stage[wb_index].WB = current_cycle;
             EX_stage[i].valid = 0;
             wb_index++;            
             //wakeup handling
@@ -319,6 +328,7 @@ void writeback(){
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
             if(ROB[j].pc == WB_stage[i].pc){
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
+                ROB[j].inst.RT = current_cycle;
                 WB_stage[i].valid = 0;          //remove instruction from the writeback stage
             }
         }                               
@@ -349,7 +359,7 @@ int advance_cycle(){
         stages_empty = 0;
        }
 
-    if(stages_empty && IQ_status() && ROB_status()){
+    if(stages_empty && IQ_status() && ROB_status() && current_cycle > 10){
         return 0;
     }
 
@@ -441,6 +451,7 @@ int ROB_status(){
     if(ROB_head == ROB_tail){
         return 1;
     }
+    return 0;
 }
 //Advance cycle functions
 
@@ -452,6 +463,16 @@ void print_final(){
 
     for(int i = 0; i < final_list.size(); i++){
         printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            final_list[i].seq, final_list[i].op, final_list[i].src1, final_list[i].src2);
+            final_list[i].seq, final_list[i].op, final_list[i].src1, final_list[i].src2, final_list[i].destr, 
+            final_list[i].DE - 1, 1, 
+            final_list[i].DE, final_list[i].RN - final_list[i].DE,
+            final_list[i].RN, final_list[i].RR - final_list[i].RN,
+            final_list[i].RR, final_list[i].DI - final_list[i].RR,
+            final_list[i].DI, final_list[i].IS - final_list[i].DI,
+            final_list[i].IS, final_list[i].EX - final_list[i].IS,
+            final_list[i].EX, final_list[i].WB - final_list[i].EX,
+            final_list[i].WB, 1,
+            final_list[i].RT, 1);
     }
+    return;
 }

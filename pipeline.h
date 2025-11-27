@@ -114,3 +114,20 @@ vector<Instruction> final_list;
 
 
 
+int advance_cycle();
+void retire();
+void writeback();
+void execute();
+void issue();
+void dispatch();
+void regread();
+void rename();
+void decode();
+void print_final();
+int find_max();
+int find_min_ready(int x);
+void IQ_wakeup(int ex_index);
+void DI_wakeup(int ex_index);
+void RR_wakeup(int ex_index);
+int IQ_status();
+int ROB_status();
