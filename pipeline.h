@@ -58,10 +58,10 @@ Retire: size = ROB_SIZE
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
 typedef struct Instruction{
     //instruction information
-    int pc, op, destr, src1, src2, valid, rdy1 = 0, rdy2 = 0;
+    int pc = 0, op = 0, destr = 0, src1 = 0, src2 = 0, valid = 0, rdy1 = 0, rdy2 = 0;
 
     //Instruction pipeline timing information
-    int seq, FE, DE, RN, RR, DI, IS, EX, WB, RT;
+    int seq = 0, FE = 0, DE = 0, RN = 0, RR = 0, DI = 0, IS = 0, EX = 0, WB = 0, RT = 0;
 
     //instruction rename info
     int src1_tag = -1, src2_tag = -1, destr_tag = -1;

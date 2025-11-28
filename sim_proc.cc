@@ -102,19 +102,8 @@ int main (int argc, char* argv[])
     //fetch section
     while(advance_cycle()){
         test_count++;
-            printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            DI_stage[0].seq, DI_stage[0].op, DI_stage[0].src1, DI_stage[0].src2, DI_stage[0].destr, 
-            DI_stage[0].DE - 1, 1, 
-            DI_stage[0].DE, DI_stage[0].RN - DI_stage[0].DE,
-            DI_stage[0].RN, DI_stage[0].RR - DI_stage[0].RN,
-            DI_stage[0].RR, DI_stage[0].DI - DI_stage[0].RR,
-            DI_stage[0].DI, DI_stage[0].IS - DI_stage[0].DI,
-            DI_stage[0].IS, DI_stage[0].EX - DI_stage[0].IS,
-            DI_stage[0].EX, DI_stage[0].WB - DI_stage[0].EX,
-            DI_stage[0].WB, 1,
-            DI_stage[0].RT, 1);
         
-        if(test_count % 10 == 0) break;
+        if(test_count % 20 == 0) break;
         retire();
         writeback();
         execute();
@@ -255,7 +244,7 @@ void regread(){
 
 //Dispatch function
 void dispatch(){
-
+    int test = 0;
     if(DI_stage[0].valid == 0) return;                  // if the Dispatch stage is empty then do nothing
     if(IQ_size - total_in_IQ < width) return;         // if the there is not enough space in the IQ then do nothing
 
@@ -282,16 +271,24 @@ void issue(){
     int num_issued = 0;
     int ready_index = 0;
 
+
     int max = find_max();                   //used to set the newest item and work back from
+
+
     for(int i = 0; i < width; i++){         //for loop to limit number of instructions moved to the Ex stage
         ready_index = find_min_ready(max);      //index of instruction ready to go to executre
+        //printf("test print %d\n", ready_index);
+
         if(ready_index < IQ_size){                  //if ready index is found
+
             for(int j = 0; j < EX_stage.size(); j++){       //increment through execute stage to find open index
                 if(EX_stage[j].valid == 0){
                     EX_stage[j] = IQ[ready_index];          //insert ready index into execute
                     EX_stage[j].EX = current_cycle;
                     IQ[ready_index].valid = 0;              //set old IQ element as empty
                     total_in_IQ--;
+
+
                     break;
                 }
             }
@@ -306,38 +303,85 @@ void execute(){
     int wb_index = 0;
     for(int i = 0; i < width*5; i++){
         //type 0 instruction handling
-        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 1)){    //if the type is 0 and it has been in execute for 1 cycle
+        if((EX_stage[i].op == 0) && (EX_stage[i].valid)){    //if the type is 0 and it has been in execute for 1 cycle
             WB_stage[wb_index] = EX_stage[i];
             WB_stage[wb_index].WB = current_cycle;
             EX_stage[i].valid = 0;
+
+            printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
+            WB_stage[wb_index].DE - 1, 1, 
+            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
+            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
+            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
+            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
+            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
+            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
+            WB_stage[wb_index].WB, 1,
+            WB_stage[wb_index].RT, 1);
+
             wb_index++;            
             //wakeup handling
             IQ_wakeup(i);
             DI_wakeup(i);
             RR_wakeup(i);
+
         }
         //type 1 instruction handling
-        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 2)){    //if the type is 1 and it has been in execute for 2 cycles
-            WB_stage[wb_index] = EX_stage[i];
-            WB_stage[wb_index].WB = current_cycle;
-            EX_stage[i].valid = 0;
-            wb_index++;            
-            //wakeup handling
-            IQ_wakeup(i);
-            DI_wakeup(i);
-            RR_wakeup(i);
+        if((EX_stage[i].op == 1) && (EX_stage[i].valid)){    //if the type is 1 and it has been in execute for 2 cycles
+            if((current_cycle - EX_stage[i].EX) > 0){
+                IQ_wakeup(i);
+                DI_wakeup(i);
+                RR_wakeup(i);
+            }
+            if((current_cycle - EX_stage[i].EX) > 1){
+                WB_stage[wb_index] = EX_stage[i];
+                WB_stage[wb_index].WB = current_cycle;
+                EX_stage[i].valid = 0;
+                printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
+            WB_stage[wb_index].DE - 1, 1, 
+            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
+            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
+            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
+            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
+            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
+            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
+            WB_stage[wb_index].WB, 1,
+            WB_stage[wb_index].RT, 1);
+
+                wb_index++;     
+            }       
         }
         //type 2 instruction handling
-        if((EX_stage[i].op == 0) && ((current_cycle - EX_stage[i].EX) > 5)){    //if the type is 2 and it has been in execute for 5 cycles
-            WB_stage[wb_index] = EX_stage[i];
-            WB_stage[wb_index].WB = current_cycle;
-            EX_stage[i].valid = 0;
-            wb_index++;            
-            //wakeup handling
-            IQ_wakeup(i);
-            DI_wakeup(i);
-            RR_wakeup(i);
+        if((EX_stage[i].op == 2) && (EX_stage[i].valid)){    //if the type is 2 and it has been in execute for 5 cycles
+            if((current_cycle - EX_stage[i].EX) > 4){
+                //wakeup handling
+                IQ_wakeup(i);
+                DI_wakeup(i);
+                RR_wakeup(i);
+            }
+            if((current_cycle - EX_stage[i].EX) > 4){
+                WB_stage[wb_index] = EX_stage[i];
+                WB_stage[wb_index].WB = current_cycle;
+                EX_stage[i].valid = 0;
+                printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
+            WB_stage[wb_index].DE - 1, 1, 
+            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
+            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
+            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
+            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
+            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
+            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
+            WB_stage[wb_index].WB, 1,
+            WB_stage[wb_index].RT, 1);
+                wb_index++;            
+            }
+
+            
         }
+
     }
     return;
 }
@@ -402,9 +446,13 @@ int advance_cycle(){
 int find_min_ready(int x){
     int min_val = x;
     int min_index = IQ_size;
+    int test_variable = 0;
 
     for(int i = 0; i < IQ_size; i++){
+
         if(IQ[i].valid == 0){           //ensures only occupied indexes are used
+            test_variable++;
+            //printf("%d",test_variable);
             continue;
         }
         if((IQ[i].seq <= min_val) && (IQ[i].rdy1 == 1) && (IQ[i].rdy2 == 1)){        //checks if all regs are ready and if it is the minimum item
@@ -418,9 +466,14 @@ int find_min_ready(int x){
 
 int find_max(){
     int max_value = 0;
-    int max_index = 0;
+    int test = 0;
 
     for(int i = 0; i < IQ_size; i++){
+        if(IQ[i].valid == 0){
+            test++;
+            //printf("%d",test);
+        }
+
         if((IQ[i].seq >= max_value) && (IQ[i].valid == 1)){        //checks if all regs are ready and if it is the minimum item
             max_value = IQ[i].seq;            //change new minimum value
         }
