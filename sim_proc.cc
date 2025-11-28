@@ -131,8 +131,10 @@ int main (int argc, char* argv[])
                 else{
                     trace_status = 0;
                     break;
-                }                        //increment sequence counter
+                }                        
             }
+            printf("%d ", test_count);
+
         }  
     }
     //print_final();
@@ -398,7 +400,6 @@ void retire(){
             // ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
 
             //final_list.push_back(ROB[ROB_head].inst);
-            printf("%d  %d\n", ROB_head, ROB_tail);
 
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
