@@ -164,8 +164,12 @@ void decode(){
 //rename function
 void rename(){
         //check if ROB has free entries
-    if((ROB.size() - total_in_ROB) < width)  return;         //do nothing if the ROB is full
-        
+    if((ROB.size() - total_in_ROB) < width) {
+        if(current_cycle < 200){
+            //printf("ROB ERROR: %d", total_in_ROB);
+        }
+        return;                      //if dispatch stage is full, do nothing
+    }
         //check if RR is empty 
     if(RR_stage[0].valid != 0 || RN_stage[0].valid == 0)  return;                         //do nothing if the regread stage is occupied or rename stage is empty
 
@@ -222,8 +226,16 @@ void rename(){
 //register read function
 void regread(){
     //check if DI is empty 
-    if(RR_stage[0].valid == 0) return;                      //if register read stage is empty then do nothing
-    if(DI_stage[0].valid == 1) return;                      //if dispatch stage is full, do nothing
+    if(RR_stage[0].valid == 0) {
+        // if(current_cycle < 200){
+        //     printf("failed at:%d", current_cycle);
+        // }
+        return;                      //if dispatch stage is full, do nothing
+    }
+    if(DI_stage[0].valid == 1) {
+       
+        return;                      //if dispatch stage is full, do nothing
+    }
 
     //check if source registers are ready and set bit accordingly(if it is then mark it as ready)
     for(int i = 0; i < width; i++){
@@ -246,10 +258,10 @@ void regread(){
         DI_stage[i] = RR_stage[i];              //move to dispatch stage
         DI_stage[i].DI = current_cycle;         //set time it entered DI stage
         RR_stage[i].valid = 0;                  //set reg read stage as empty after moving
+        //printf("%d ",current_cycle);
     }
 
-    /*SOMETHING IS WRONG HERE POTENTIALLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    */
+    
     return;
 }
 //register read function^^^^^
@@ -257,13 +269,15 @@ void regread(){
 //Dispatch function
 void dispatch(){
     int test = 0;
-    if(DI_stage[0].valid == 0) return;                  // if the Dispatch stage is empty then do nothing
+    if(DI_stage[0].valid == 0) {
+       // printf("%d ",current_cycle);
+        return;                  // if the Dispatch stage is empty then do nothing
+    }
     if(IQ_size - total_in_IQ < width) return;         // if the there is not enough space in the IQ then do nothing
 
     //insert instruction into open location of the IQ(step through IQ to find open space)
     for(int i = 0; i < width; i++){
-        if(DI_stage[i].valid == 0)       printf("%d ",current_cycle);
-        printf("%d ",total_in_IQ);
+        //printf("%d ",total_in_IQ);
 
         for(int j = 0; j < IQ_size; j++){           //step through IQ to find empty spot
             if(IQ[j].valid == 0){
@@ -287,6 +301,7 @@ void issue(){
 
 
     int max = find_max();                   //used to set the newest item and work back from
+
 
 
     for(int i = 0; i < width; i++){         //for loop to limit number of instructions moved to the Ex stage
@@ -318,11 +333,13 @@ void execute(){
     for(int i = 0; i < width*5; i++){
         //type 0 instruction handling
         if((EX_stage[i].op == 0) && (EX_stage[i].valid)){    //if the type is 0 and it has been in execute for 1 cycle
-            WB_stage[wb_index] = EX_stage[i];
-            WB_stage[wb_index].WB = current_cycle;
-            EX_stage[i].valid = 0;
+            if(current_cycle - EX_stage[i].EX > 0){
+                WB_stage[wb_index] = EX_stage[i];
+                WB_stage[wb_index].WB = current_cycle;
+                EX_stage[i].valid = 0;
 
-            wb_index++;            
+                wb_index++;            
+            }
             //wakeup handling
             IQ_wakeup(i);
             DI_wakeup(i);
@@ -375,7 +392,7 @@ void writeback(){
     for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
         if(WB_stage[i].valid == 0)  break;
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
-            if((ROB[j].pc == WB_stage[i].pc) && (WB_stage[i].valid)){
+            if((ROB[j].inst.pc == WB_stage[i].pc)){
 
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
                 ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
@@ -402,17 +419,17 @@ void retire(){
                     RMT[ROB[ROB_head].dst].valid = 0;                   //set as invalid(i.e. empty)
                 }
             }
-            // printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            // ROB[ROB_head].inst.seq, ROB[ROB_head].inst.op, ROB[ROB_head].inst.src1, ROB[ROB_head].inst.src2, ROB[ROB_head].inst.destr, 
-            // ROB[ROB_head].inst.DE - 1, 1, 
-            // ROB[ROB_head].inst.DE, ROB[ROB_head].inst.RN - ROB[ROB_head].inst.DE,
-            // ROB[ROB_head].inst.RN, ROB[ROB_head].inst.RR - ROB[ROB_head].inst.RN,
-            // ROB[ROB_head].inst.RR, ROB[ROB_head].inst.DI - ROB[ROB_head].inst.RR,
-            // ROB[ROB_head].inst.DI, ROB[ROB_head].inst.IS - ROB[ROB_head].inst.DI,
-            // ROB[ROB_head].inst.IS, ROB[ROB_head].inst.EX - ROB[ROB_head].inst.IS,
-            // ROB[ROB_head].inst.EX, ROB[ROB_head].inst.WB - ROB[ROB_head].inst.EX,
-            // ROB[ROB_head].inst.WB, 1,
-            // ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
+            printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            ROB[ROB_head].inst.seq, ROB[ROB_head].inst.op, ROB[ROB_head].inst.src1, ROB[ROB_head].inst.src2, ROB[ROB_head].inst.destr, 
+            ROB[ROB_head].inst.DE - 1, 1, 
+            ROB[ROB_head].inst.DE, ROB[ROB_head].inst.RN - ROB[ROB_head].inst.DE,
+            ROB[ROB_head].inst.RN, ROB[ROB_head].inst.RR - ROB[ROB_head].inst.RN,
+            ROB[ROB_head].inst.RR, ROB[ROB_head].inst.DI - ROB[ROB_head].inst.RR,
+            ROB[ROB_head].inst.DI, ROB[ROB_head].inst.IS - ROB[ROB_head].inst.DI,
+            ROB[ROB_head].inst.IS, ROB[ROB_head].inst.EX - ROB[ROB_head].inst.IS,
+            ROB[ROB_head].inst.EX, ROB[ROB_head].inst.WB - ROB[ROB_head].inst.EX,
+            ROB[ROB_head].inst.WB, 1,
+            ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
 
             //final_list.push_back(ROB[ROB_head].inst);
 
