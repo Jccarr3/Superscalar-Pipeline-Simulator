@@ -30,6 +30,8 @@ int ROB_head = 0;                  //used to track current position in ROB(circu
 int ROB_tail = 0;                  //used to throw instructions into this index of ROB
 
 int test_break = 0;
+int test_count = 0;
+
 
 
 
@@ -90,7 +92,6 @@ int main (int argc, char* argv[])
     RMT.resize(67);
 
 
-    int test_count = 0;
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -120,6 +121,9 @@ int main (int argc, char* argv[])
         decode();
         if(DE_stage[0].valid == 0){                     //if nothing in DE
             for(int i = 0; i < width; i++){
+                DE_stage[i].valid = 0;
+            }
+            for(int i = 0; i < width; i++){
                 if(fscanf(FP, "%lx %d %d %d %d", &DE_stage[i].pc, &DE_stage[i].op, &DE_stage[i].destr, &DE_stage[i].src1, &DE_stage[i].src2) != EOF){   //read file line
                     DE_stage[i].valid = 1;                  //set stage as valid
                     DE_stage[i].DE = current_cycle;         //set what cycle it enters the decode stage
@@ -133,7 +137,6 @@ int main (int argc, char* argv[])
                     break;
                 }                        
             }
-            printf("%d ", test_count);
 
         }  
     }
@@ -244,6 +247,9 @@ void regread(){
         DI_stage[i].DI = current_cycle;         //set time it entered DI stage
         RR_stage[i].valid = 0;                  //set reg read stage as empty after moving
     }
+
+    /*SOMETHING IS WRONG HERE POTENTIALLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    */
     return;
 }
 //register read function^^^^^
@@ -256,7 +262,9 @@ void dispatch(){
 
     //insert instruction into open location of the IQ(step through IQ to find open space)
     for(int i = 0; i < width; i++){
-        if(DI_stage[i].valid == 0)  continue;       //skip if invalid instruction(i.e. not a full bundle)
+        if(DI_stage[i].valid == 0)       printf("%d ",current_cycle);
+        printf("%d ",total_in_IQ);
+
         for(int j = 0; j < IQ_size; j++){           //step through IQ to find empty spot
             if(IQ[j].valid == 0){
                 IQ[j] = DI_stage[i];                //insert new instruction at empty spot
@@ -287,14 +295,12 @@ void issue(){
 
         if(ready_index < IQ_size){                  //if ready index is found
 
-            for(int j = 0; j < EX_stage.size(); j++){       //increment through execute stage to find open index
+            for(int j = 0; j < width*5; j++){       //increment through execute stage to find open index
                 if(EX_stage[j].valid == 0){
                     EX_stage[j] = IQ[ready_index];          //insert ready index into execute
                     EX_stage[j].EX = current_cycle;
                     IQ[ready_index].valid = 0;              //set old IQ element as empty
                     total_in_IQ--;
-
-
                     break;
                 }
             }
@@ -307,6 +313,8 @@ void issue(){
 //execute function
 void execute(){
     int wb_index = 0;
+
+
     for(int i = 0; i < width*5; i++){
         //type 0 instruction handling
         if((EX_stage[i].op == 0) && (EX_stage[i].valid)){    //if the type is 0 and it has been in execute for 1 cycle
@@ -319,6 +327,7 @@ void execute(){
             IQ_wakeup(i);
             DI_wakeup(i);
             RR_wakeup(i);
+
 
         }
         //type 1 instruction handling
@@ -333,7 +342,8 @@ void execute(){
                 WB_stage[wb_index].WB = current_cycle;
                 EX_stage[i].valid = 0;
                 wb_index++;     
-            }       
+            }      
+ 
         }
         //type 2 instruction handling
         if((EX_stage[i].op == 2) && (EX_stage[i].valid)){    //if the type is 2 and it has been in execute for 5 cycles
@@ -353,6 +363,7 @@ void execute(){
             
         }
 
+
     }
     return;
 }
@@ -360,17 +371,20 @@ void execute(){
 
 //Writback Function
 void writeback(){
+    int match = 0;
     for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
         if(WB_stage[i].valid == 0)  break;
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
             if((ROB[j].pc == WB_stage[i].pc) && (WB_stage[i].valid)){
+
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
                 ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
                 ROB[j].inst.RT = current_cycle;
-
+                match = 1;
                 WB_stage[i].valid = 0;          //remove instruction from the writeback stage
             }
-        }                               
+        }  
+
     }
     return;
 }
@@ -380,6 +394,7 @@ void writeback(){
 void retire(){
     for(int i = 0; i < width;i++){                  //retire up to WIDTH items from the ROB
         if(ROB[ROB_head].rdy == 1){
+
             //write code to reset corresponding RMT space(only reset if the tags match)
             if(ROB[ROB_head].dst != -1){            //this is done to avoid out of bounds access of vector
                 if(RMT[ROB[ROB_head].dst].tag == ROB[ROB_head].inst.destr_tag){         //if destination register tag is the same as in RMT

@@ -71,7 +71,8 @@ typedef struct Instruction{
 
 typedef struct Reorder_Buffer{
     //reorder buffer instruction variables
-    int value = 0, dst = -1, rdy = 0, pc = 0;
+    int value = 0, dst = -1, rdy = 0;
+    uint64_t pc = 0;
     Instruction inst;
 
 } Reorder_Buffer;
