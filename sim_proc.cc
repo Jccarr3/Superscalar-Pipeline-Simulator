@@ -107,7 +107,7 @@ int main (int argc, char* argv[])
 
     //fetch section
     while(advance_cycle()){
-        if(test_break) break;
+        if(current_cycle > 500) break;
         test_count++;
         
         //if(test_count % 50 == 0) break;
@@ -432,7 +432,6 @@ void retire(){
             ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
 
             //final_list.push_back(ROB[ROB_head].inst);
-
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
             dic++;
