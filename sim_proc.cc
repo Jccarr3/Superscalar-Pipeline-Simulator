@@ -41,8 +41,8 @@ int main (int argc, char* argv[])
     FILE *FP;               // File handler
     char *trace_file;       // Variable that holds trace file name;
     proc_params params;       // look at sim_bp.h header file for the the definition of struct proc_params
-    int op_type, dest, src1, src2;  // Variables are read from trace file
-    uint64_t pc; // Variable holds the pc read from input file
+    //int op_type, dest, src1, src2;  // Variables are read from trace file
+    //uint64_t pc; // Variable holds the pc read from input file
     
     if (argc != 5)
     {
@@ -164,7 +164,7 @@ void decode(){
 //rename function
 void rename(){
         //check if ROB has free entries
-    if((ROB.size() - total_in_ROB) < width) {
+    if((ROB_size - total_in_ROB) < width) {
         if(current_cycle < 200){
             //printf("ROB ERROR: %d", total_in_ROB);
         }
@@ -268,7 +268,6 @@ void regread(){
 
 //Dispatch function
 void dispatch(){
-    int test = 0;
     if(DI_stage[0].valid == 0) {
        // printf("%d ",current_cycle);
         return;                  // if the Dispatch stage is empty then do nothing
@@ -296,13 +295,9 @@ void dispatch(){
 
 //issue function
 void issue(){
-    int num_issued = 0;
     int ready_index = 0;
 
-
     int max = find_max();                   //used to set the newest item and work back from
-
-
 
     for(int i = 0; i < width; i++){         //for loop to limit number of instructions moved to the Ex stage
         ready_index = find_min_ready(max);      //index of instruction ready to go to executre
@@ -388,7 +383,6 @@ void execute(){
 
 //Writback Function
 void writeback(){
-    int match = 0;
     for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
         if(WB_stage[i].valid == 0)  break;
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
@@ -397,7 +391,6 @@ void writeback(){
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
                 ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
                 ROB[j].inst.RT = current_cycle;
-                match = 1;
                 WB_stage[i].valid = 0;          //remove instruction from the writeback stage
             }
         }  
@@ -565,7 +558,7 @@ void print_final(){
         return a.seq < b.seq;
     });
 
-    for(int i = 0; i < final_list.size(); i++){
+    for(uint32_t i = 0; i < final_list.size(); i++){
         printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
             final_list[i].seq, final_list[i].op, final_list[i].src1, final_list[i].src2, final_list[i].destr, 
             final_list[i].DE - 1, 1, 
