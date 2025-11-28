@@ -26,6 +26,11 @@ int trace_status = 1;
 int total_in_ROB = 0;              //used for keeping track of how many items are currently in the ROB
 int total_in_IQ = 0;
 
+int ROB_head = 0;                  //used to track current position in ROB(circular buffer style)
+int ROB_tail = 0;                  //used to throw instructions into this index of ROB
+
+int test_break = 0;
+
 
 
 
@@ -101,9 +106,10 @@ int main (int argc, char* argv[])
 
     //fetch section
     while(advance_cycle()){
+        if(test_break) break;
         test_count++;
         
-        if(test_count % 20 == 0) break;
+        //if(test_count % 50 == 0) break;
         retire();
         writeback();
         execute();
@@ -172,8 +178,6 @@ void rename(){
             ROB[ROB_tail].dst = -1;                        //set ROB destination register as null
         }
         ROB[ROB_tail].rdy = 0;                             //set ROB ready bit as 0
-        ROB[ROB_tail].exc = 0;                              //unused for now
-        ROB[ROB_tail].mis = 0;                             //unused for now
         ROB[ROB_tail].pc = RN_stage[i].pc;                 //match the program counter(used later for setting items in the ROB as ready)
         ROB[ROB_tail].inst = RN_stage[i];                  //store entire instruction information 
         //adds instruction to ROB^^^^^
@@ -308,18 +312,6 @@ void execute(){
             WB_stage[wb_index].WB = current_cycle;
             EX_stage[i].valid = 0;
 
-            printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
-            WB_stage[wb_index].DE - 1, 1, 
-            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
-            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
-            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
-            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
-            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
-            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
-            WB_stage[wb_index].WB, 1,
-            WB_stage[wb_index].RT, 1);
-
             wb_index++;            
             //wakeup handling
             IQ_wakeup(i);
@@ -329,7 +321,7 @@ void execute(){
         }
         //type 1 instruction handling
         if((EX_stage[i].op == 1) && (EX_stage[i].valid)){    //if the type is 1 and it has been in execute for 2 cycles
-            if((current_cycle - EX_stage[i].EX) > 0){
+            if((current_cycle - EX_stage[i].EX) > 1){
                 IQ_wakeup(i);
                 DI_wakeup(i);
                 RR_wakeup(i);
@@ -338,18 +330,6 @@ void execute(){
                 WB_stage[wb_index] = EX_stage[i];
                 WB_stage[wb_index].WB = current_cycle;
                 EX_stage[i].valid = 0;
-                printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
-            WB_stage[wb_index].DE - 1, 1, 
-            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
-            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
-            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
-            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
-            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
-            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
-            WB_stage[wb_index].WB, 1,
-            WB_stage[wb_index].RT, 1);
-
                 wb_index++;     
             }       
         }
@@ -365,17 +345,6 @@ void execute(){
                 WB_stage[wb_index] = EX_stage[i];
                 WB_stage[wb_index].WB = current_cycle;
                 EX_stage[i].valid = 0;
-                printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            WB_stage[wb_index].seq, WB_stage[wb_index].op, WB_stage[wb_index].src1, WB_stage[wb_index].src2, WB_stage[wb_index].destr, 
-            WB_stage[wb_index].DE - 1, 1, 
-            WB_stage[wb_index].DE, WB_stage[wb_index].RN - WB_stage[wb_index].DE,
-            WB_stage[wb_index].RN, WB_stage[wb_index].RR - WB_stage[wb_index].RN,
-            WB_stage[wb_index].RR, WB_stage[wb_index].DI - WB_stage[wb_index].RR,
-            WB_stage[wb_index].DI, WB_stage[wb_index].IS - WB_stage[wb_index].DI,
-            WB_stage[wb_index].IS, WB_stage[wb_index].EX - WB_stage[wb_index].IS,
-            WB_stage[wb_index].EX, WB_stage[wb_index].WB - WB_stage[wb_index].EX,
-            WB_stage[wb_index].WB, 1,
-            WB_stage[wb_index].RT, 1);
                 wb_index++;            
             }
 
@@ -390,8 +359,9 @@ void execute(){
 //Writback Function
 void writeback(){
     for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
+        if(WB_stage[i].valid == 0)  break;
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
-            if(ROB[j].pc == WB_stage[i].pc){
+            if((ROB[j].pc == WB_stage[i].pc) && (WB_stage[i].valid)){
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
                 ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
                 ROB[j].inst.RT = current_cycle;
@@ -409,7 +379,27 @@ void retire(){
     for(int i = 0; i < width;i++){                  //retire up to WIDTH items from the ROB
         if(ROB[ROB_head].rdy == 1){
             //write code to reset corresponding RMT space(only reset if the tags match)
-            final_list.push_back(ROB[ROB_head].inst);
+            if(ROB[ROB_head].dst != -1){            //this is done to avoid out of bounds access of vector
+                if(RMT[ROB[ROB_head].dst].tag == ROB[ROB_head].inst.destr_tag){         //if destination register tag is the same as in RMT
+                    RMT[ROB[ROB_head].dst].tag = -1;                    //set tag to something that won't match anything
+                    RMT[ROB[ROB_head].dst].valid = 0;                   //set as invalid(i.e. empty)
+                }
+            }
+            // printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
+            // ROB[ROB_head].inst.seq, ROB[ROB_head].inst.op, ROB[ROB_head].inst.src1, ROB[ROB_head].inst.src2, ROB[ROB_head].inst.destr, 
+            // ROB[ROB_head].inst.DE - 1, 1, 
+            // ROB[ROB_head].inst.DE, ROB[ROB_head].inst.RN - ROB[ROB_head].inst.DE,
+            // ROB[ROB_head].inst.RN, ROB[ROB_head].inst.RR - ROB[ROB_head].inst.RN,
+            // ROB[ROB_head].inst.RR, ROB[ROB_head].inst.DI - ROB[ROB_head].inst.RR,
+            // ROB[ROB_head].inst.DI, ROB[ROB_head].inst.IS - ROB[ROB_head].inst.DI,
+            // ROB[ROB_head].inst.IS, ROB[ROB_head].inst.EX - ROB[ROB_head].inst.IS,
+            // ROB[ROB_head].inst.EX, ROB[ROB_head].inst.WB - ROB[ROB_head].inst.EX,
+            // ROB[ROB_head].inst.WB, 1,
+            // ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
+
+            //final_list.push_back(ROB[ROB_head].inst);
+            printf("%d  %d\n", ROB_head, ROB_tail);
+
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
             dic++;
@@ -530,7 +520,7 @@ int IQ_status(){
 }
 
 int ROB_status(){
-    if(ROB_head == ROB_tail){
+    if(total_in_ROB == 0){
         return 1;
     }
     return 0;

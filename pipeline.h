@@ -58,10 +58,11 @@ Retire: size = ROB_SIZE
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline
 typedef struct Instruction{
     //instruction information
-    int pc = 0, op = 0, destr = 0, src1 = 0, src2 = 0, valid = 0, rdy1 = 0, rdy2 = 0;
+    uint64_t pc = 0;
+    int op = 0, destr = 0, src1 = 0, src2 = 0, valid = 0, rdy1 = 0, rdy2 = 0;
 
     //Instruction pipeline timing information
-    int seq = 0, FE = 0, DE = 0, RN = 0, RR = 0, DI = 0, IS = 0, EX = 0, WB = 0, RT = 0;
+    int seq = 0, FE = 0, DE = 0, RN = 0, RR = 0, DI = 0, IS = 0, EX = 0, WB = 0, RT = 0, done = 0;
 
     //instruction rename info
     int src1_tag = -1, src2_tag = -1, destr_tag = -1;
@@ -70,7 +71,7 @@ typedef struct Instruction{
 
 typedef struct Reorder_Buffer{
     //reorder buffer instruction variables
-    int value, dst, rdy, exc, mis, pc;
+    int value = 0, dst = -1, rdy = 0, pc = 0;
     Instruction inst;
 
 } Reorder_Buffer;
@@ -100,8 +101,7 @@ vector<Instruction> final_list;
     int width = 0;
     //ROB
     int ROB_size = 0;
-    int ROB_head = 0;                  //used to track current position in ROB(circular buffer style)
-    int ROB_tail = 0;                  //used to throw instructions into this index of ROB
+    
 
 
     //IQ
