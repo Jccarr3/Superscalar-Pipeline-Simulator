@@ -552,7 +552,7 @@ int ROB_status(){
 }
 //Advance cycle functions
 
-//printing functions
+//printing functionsyos
 void print_final(){
     sort(final_list.begin(), final_list.end(), [](const Instruction& a, const Instruction& b){
         return a.seq < b.seq;
