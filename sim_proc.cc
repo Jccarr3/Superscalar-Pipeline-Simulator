@@ -138,7 +138,7 @@ int main (int argc, char* argv[])
 
                 else{
                     trace_status = 0;
-                    printf("file cleared!!!!!!!\n");
+                    //printf("file cleared!!!!!!!\n");
                     break;
                 }                        
             }
@@ -549,7 +549,7 @@ int IQ_status(){
             return all_clear;
         }
     }
-    printf("IQ empty %d\n",total_in_ROB);
+    //printf("IQ empty %d\n",total_in_ROB);
 
 
     return all_clear;
@@ -557,7 +557,7 @@ int IQ_status(){
 
 int ROB_status(){
     if(total_in_ROB <= 0){
-        printf("rob cleared\n");
+        //printf("rob cleared\n");
         return 1;
     }
     return 0;
