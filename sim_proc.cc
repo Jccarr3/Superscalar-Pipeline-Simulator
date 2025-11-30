@@ -442,7 +442,6 @@ void retire(){
 //Advance cycle function
 int advance_cycle(){
     int stages_empty = 1;
-    current_cycle++;
     if((DE_stage[0].valid == 1) || (RN_stage[0].valid == 1) ||
        (RR_stage[0].valid == 1) || (DI_stage[0].valid == 1) ||
        (EX_stage[0].valid == 1) || (WB_stage[0].valid == 1)){
@@ -452,6 +451,8 @@ int advance_cycle(){
     if(stages_empty && IQ_status() && ROB_status() && current_cycle > 10){
         return 0;
     }
+    current_cycle++;
+
 
     return 1;
     
@@ -559,14 +560,14 @@ int ROB_status(){
 
 //printing functions
 void print_final(){
-    printf("=== Simulator Command =========\n");
-    printf("./sim %d %d %d %s\n", ROB_size, IQ_size, width, trace);
-    printf("=== Processor Configuration ===\n");
-    printf("ROB_SIZE = %d\nIQ_SIZE  = %d\nWIDTH    = 1\n", ROB_size, IQ_size, width);
-    printf("=== Simulation Results ========\n");
-    printf("Dynamic Instruction Count    = %d\n"
-           "Cycles                       = %d\n"
-           "Instructions Per Cycle (IPC) = %d",global_seq,current_cycle, (double)global_seq/(double)current_cycle);
+    printf("# === Simulator Command =========\n");
+    printf("# ./sim %d %d %d %s\n", ROB_size, IQ_size, width, trace);
+    printf("# === Processor Configuration ===\n");
+    printf("# ROB_SIZE = %d\nIQ_SIZE  = %d\nWIDTH    = 1\n", ROB_size, IQ_size, width);
+    printf("# === Simulation Results ========\n");
+    printf("# Dynamic Instruction Count    = %d\n"
+           "# Cycles                       = %d\n"
+           "# Instructions Per Cycle (IPC) = %.2f",global_seq,current_cycle, (double)global_seq/(double)current_cycle);
 
     return;
 }
