@@ -138,6 +138,7 @@ int main (int argc, char* argv[])
 
                 else{
                     trace_status = 0;
+                    printf("file cleared!!!!!!!\n");
                     break;
                 }                        
             }
@@ -410,6 +411,7 @@ void writeback(){
 void retire(){
     for(int i = 0; i < width;i++){                  //retire up to WIDTH items from the ROB
         if(ROB[ROB_head].rdy == 1){
+            //ROB[ROB_head].rdy = 0;
 
             //write code to reset corresponding RMT space(only reset if the tags match)
             if(ROB[ROB_head].dst != -1){            //this is done to avoid out of bounds access of vector
@@ -544,14 +546,18 @@ int IQ_status(){
     for(int i = 0; i < IQ_size; i++){
         if(IQ[i].valid == 1){
             all_clear = 0;
+            return all_clear;
         }
     }
+    printf("IQ empty %d\n",total_in_ROB);
+
 
     return all_clear;
 }
 
 int ROB_status(){
-    if(total_in_ROB == 0){
+    if(total_in_ROB <= 0){
+        printf("rob cleared\n");
         return 1;
     }
     return 0;
