@@ -43,7 +43,11 @@ do
         elif [ "$i" -eq 4 ]; then
         for j in 32 64 128 256 512
             do
-                ./experimentation $j 64 $i $x
+                if [ "$x" = "val_trace_gcc1" ]; then
+                    ./experimentation $j 32 $i $x
+                elif [ "$x" = "val_trace_perl1" ]; then
+                    ./experimentation $j 64 $i $x
+                fi
             done
 
         elif [ "$i" -eq 8 ]; then
