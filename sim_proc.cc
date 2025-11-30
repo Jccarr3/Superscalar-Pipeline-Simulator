@@ -563,7 +563,7 @@ void print_final(){
     printf("# === Simulator Command =========\n");
     printf("# ./sim %d %d %d %s\n", ROB_size, IQ_size, width, trace);
     printf("# === Processor Configuration ===\n");
-    printf("# ROB_SIZE = %d\nIQ_SIZE  = %d\nWIDTH    = 1\n", ROB_size, IQ_size, width);
+    printf("# ROB_SIZE = %d\nIQ_SIZE  = %d\nWIDTH    = %d\n", ROB_size, IQ_size, width);
     printf("# === Simulation Results ========\n");
     printf("# Dynamic Instruction Count    = %d\n"
            "# Cycles                       = %d\n"
