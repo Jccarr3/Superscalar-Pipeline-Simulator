@@ -78,7 +78,7 @@ typedef struct Reorder_Buffer{
 } Reorder_Buffer;
 
 typedef struct Rename_Map_Table{
-    int valid, tag = -1;
+    int valid = 0, tag = -1;
 } Rename_Map_Table;
 
 //struct that will be used to create instruction variables, allowing them to be tracked throughout the pipeline

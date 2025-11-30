@@ -107,7 +107,7 @@ int main (int argc, char* argv[])
 
     //fetch section
     while(advance_cycle()){
-        if(current_cycle > 15000) break;
+        if(current_cycle > 250) break;
         test_count++;
         
         //if(test_count % 50 == 0) break;
@@ -192,8 +192,10 @@ void rename(){
         //adds instruction to ROB^^^^^
 
         //rename source registers
-        if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed(check RMT)
-            RN_stage[i].src1_tag = RMT[RN_stage[i].src1].tag;       //rename instruction src reg to name from RMT
+        if(RN_stage[i].src1 != -1){
+            if(RMT[RN_stage[i].src1].valid == 1){        //source register 1 has been renamed(check RMT)
+                RN_stage[i].src1_tag = RMT[RN_stage[i].src1].tag;       //rename instruction src reg to name from RMT
+            }
         }
         
         if(RN_stage[i].src2 != -1){             //checks if there is a second source register
@@ -386,7 +388,7 @@ void writeback(){
     for(int i = 0; i < width*5; i++){           //move through every item in the WB unit
         if(WB_stage[i].valid == 0)  break;
         for(int j = 0; j < ROB_size; j++){      //search ROB for matching item
-            if((ROB[j].inst.pc == WB_stage[i].pc)){
+            if((ROB[j].inst.seq == WB_stage[i].seq)){
 
                 ROB[j].rdy = 1;                 //set corresponding instruction to ready in the ROB
                 ROB[j].inst = WB_stage[i];      //update instruction timing information in ROB
@@ -552,7 +554,7 @@ int ROB_status(){
 }
 //Advance cycle functions
 
-//printing functionsyos
+//printing functions
 void print_final(){
     sort(final_list.begin(), final_list.end(), [](const Instruction& a, const Instruction& b){
         return a.seq < b.seq;
