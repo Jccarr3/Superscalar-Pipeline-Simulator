@@ -410,8 +410,7 @@ void writeback(){
 //Retire function
 void retire(){
     for(int i = 0; i < width;i++){                  //retire up to WIDTH items from the ROB
-        if(ROB[ROB_head].rdy == 1){
-            //ROB[ROB_head].rdy = 0;
+        if((ROB[ROB_head].rdy == 1) && (ROB[ROB_head].inst.seq != -1)){
 
             //write code to reset corresponding RMT space(only reset if the tags match)
             if(ROB[ROB_head].dst != -1){            //this is done to avoid out of bounds access of vector
@@ -431,6 +430,8 @@ void retire(){
             ROB[ROB_head].inst.EX, ROB[ROB_head].inst.WB - ROB[ROB_head].inst.EX,
             ROB[ROB_head].inst.WB, 1,
             ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
+
+            ROB[ROB_head].inst.seq = -1;                    //if item does not get replaced, this line is useful for marking retired(used in if statement above)    
 
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
