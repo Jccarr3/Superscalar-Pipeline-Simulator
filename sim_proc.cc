@@ -107,7 +107,7 @@ int main (int argc, char* argv[])
 
     //fetch section
     while(advance_cycle()){
-        if(current_cycle > 250) break;
+        if(current_cycle > 15000) break;
         test_count++;
         
         //if(test_count % 50 == 0) break;
