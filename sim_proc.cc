@@ -54,10 +54,12 @@ int main (int argc, char* argv[])
     params.iq_size      = strtoul(argv[2], NULL, 10);
     params.width        = strtoul(argv[3], NULL, 10);
     trace_file          = argv[4];
+    /*
     printf("rob_size:%lu "
             "iq_size:%lu "
             "width:%lu "
             "tracefile:%s\n", params.rob_size, params.iq_size, params.width, trace_file);
+    */
     // Open trace_file in read mode
     FP = fopen(trace_file, "r");
     if(FP == NULL)
@@ -73,6 +75,8 @@ int main (int argc, char* argv[])
     width = params.width;
     IQ_size = params.iq_size;
     ROB_size = params.rob_size;
+    trace = trace_file;
+
     
     //variables for ROB management
 
@@ -140,7 +144,7 @@ int main (int argc, char* argv[])
 
         }  
     }
-    //print_final();
+    print_final();
 
     return 0;
 }
@@ -426,7 +430,6 @@ void retire(){
             ROB[ROB_head].inst.WB, 1,
             ROB[ROB_head].inst.RT, current_cycle - ROB[ROB_head].inst.RT);
 
-            //final_list.push_back(ROB[ROB_head].inst);
             ROB_head = (ROB_head + 1) % ROB_size;           //increment head point(basically voids previous input)
             total_in_ROB--;                                 //decrease number perceived number of items in ROB
             dic++;
@@ -556,22 +559,14 @@ int ROB_status(){
 
 //printing functions
 void print_final(){
-    sort(final_list.begin(), final_list.end(), [](const Instruction& a, const Instruction& b){
-        return a.seq < b.seq;
-    });
+    printf("=== Simulator Command =========\n");
+    printf("./sim %d %d %d %s\n", ROB_size, IQ_size, width, trace);
+    printf("=== Processor Configuration ===\n");
+    printf("ROB_SIZE = %d\nIQ_SIZE  = %d\nWIDTH    = 1\n", ROB_size, IQ_size, width);
+    printf("=== Simulation Results ========\n");
+    printf("Dynamic Instruction Count    = %d\n"
+           "Cycles                       = %d\n"
+           "Instructions Per Cycle (IPC) = %d",global_seq,current_cycle, (double)global_seq/(double)current_cycle);
 
-    for(uint32_t i = 0; i < final_list.size(); i++){
-        printf("%d  fu{%d}  src{%d,%d}  dst{%d}  FE{%d,%d}  DE{%d,%d}  RN{%d,%d}  RR{%d,%d}  DI{%d,%d}  IS{%d,%d}  EX{%d,%d}  WB{%d,%d}  RT{%d,%d}\n", 
-            final_list[i].seq, final_list[i].op, final_list[i].src1, final_list[i].src2, final_list[i].destr, 
-            final_list[i].DE - 1, 1, 
-            final_list[i].DE, final_list[i].RN - final_list[i].DE,
-            final_list[i].RN, final_list[i].RR - final_list[i].RN,
-            final_list[i].RR, final_list[i].DI - final_list[i].RR,
-            final_list[i].DI, final_list[i].IS - final_list[i].DI,
-            final_list[i].IS, final_list[i].EX - final_list[i].IS,
-            final_list[i].EX, final_list[i].WB - final_list[i].EX,
-            final_list[i].WB, 1,
-            final_list[i].RT, 1);
-    }
     return;
 }

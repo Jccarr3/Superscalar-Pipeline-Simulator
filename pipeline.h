@@ -99,6 +99,7 @@ vector<Instruction> final_list;
 
 
 //important variables
+    char* trace;
     int width = 0;
     //ROB
     int ROB_size = 0;
